@@ -1,0 +1,23 @@
+# Deno
+.deno/
+deno.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Logs
+*.log
