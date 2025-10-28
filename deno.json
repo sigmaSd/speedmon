@@ -4,11 +4,10 @@
     "start": "deno run --allow-read --allow-ffi --allow-env=DENO_PYTHON_PATH --allow-net --allow-run --unstable-ffi src/main.ts"
   },
   "imports": {
-    "gtk-py": "jsr:@sigma/gtk-py@^0.7.0"
+    "gtk-py": "jsr:@sigma/gtk-py@^0.7.2"
   },
   "links": [
-    "../others/deno_python",
-    "../deno-gtk-py"
+    "../others/deno_python"
   ],
   "nodeModulesDir": "auto"
 }

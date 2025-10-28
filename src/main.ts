@@ -166,7 +166,7 @@ class MainWindow {
     this.#stopButton.add_css_class("destructive-action");
     this.#stopButton.set_margin_top(10);
     this.#stopButton.set_sensitive(false);
-    this.#stopButton.connect("clicked", () => this.#stopTest());
+    this.#stopButton.connect("clicked", () => this.stopTest());
     controlGroup.add(this.#stopButton);
 
     mainBox.append(controlGroup);
@@ -180,7 +180,7 @@ class MainWindow {
   }
 
   #onCloseRequest() {
-    this.#stopTest();
+    this.stopTest();
     el.stop();
   }
 
@@ -208,7 +208,7 @@ class MainWindow {
     dialog.set_visible(true);
   };
 
-  #stopTest() {
+  stopTest() {
     if (this.#abortController) {
       this.#abortController.abort();
       this.#abortController = null;
@@ -522,19 +522,17 @@ class App extends Adw.Application {
     }
     this.#win.present();
   };
+
+  stopTest = () => {
+    this.#win?.stopTest();
+  };
 }
 
 if (import.meta.main) {
   const app = new App(kw`application_id=${APP_ID}`);
-  const signal = python.import("signal");
-  GLib.unix_signal_add(
-    GLib.PRIORITY_HIGH,
-    signal.SIGINT,
-    () => {
-      app.quit();
-    },
-  );
-  app.register();
-  app.activate();
-  el.start();
+  Deno.addSignalListener("SIGINT", () => {
+    app.stopTest();
+    el.stop();
+  });
+  el.start(app);
 }
