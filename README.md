@@ -2,6 +2,8 @@
 
 A network speed monitoring application built with Deno and GTK4/Adwaita.
 
+<img width="522" height="743" alt="image" src="https://github.com/user-attachments/assets/bb0bc8d8-7ce8-45ce-baec-974e497d95d9" />
+
 ## Features
 
 - **Download Speed Test**: Tests download speed using native JavaScript
