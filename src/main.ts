@@ -38,16 +38,18 @@ class MainWindow {
   #currentTest: TestType = null;
   #abortController: AbortController | null = null;
   #pingProcess: Deno.ChildProcess | null = null;
+  #lastUploadSpeed: string = "--";
 
   constructor(app: Adw_.Application) {
     this.#app = app;
 
     // Create main window
-    this.#win = Adw.ApplicationWindow(
+    this.#win = new Adw.ApplicationWindow(
       new NamedArgument("application", app),
     );
     this.#win.set_title(APP_NAME);
     this.#win.set_default_size(400, 500);
+    this.#win.connect("close-request", () => this.#onCloseRequest());
 
     // Create header bar
     const header = Adw.HeaderBar();
@@ -177,6 +179,11 @@ class MainWindow {
     this.#win.set_content(toolbarView);
   }
 
+  #onCloseRequest() {
+    this.#stopTest();
+    el.stop();
+  }
+
   present() {
     this.#win.present();
   }
@@ -292,10 +299,13 @@ class MainWindow {
           if (now - lastUpdate > 200) {
             const speedMBps = bytesDownloaded / (elapsed * 1024 * 1024); // MB/s
 
-            this.#setStatus(
-              "Testing download speed...",
-              `${speedMBps.toFixed(2)} MB/s`,
-            );
+            // Only update UI if download test is still active
+            if (this.#currentTest === "download") {
+              this.#setStatus(
+                "Testing download speed...",
+                `${speedMBps.toFixed(2)} MB/s`,
+              );
+            }
 
             lastUpdate = now;
           }
@@ -305,10 +315,13 @@ class MainWindow {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        this.#setStatus("Test cancelled", "--");
-      } else {
-        this.#setStatus("Error: " + (error as Error).message, "--");
+      // Only update UI if download test is still active
+      if (this.#currentTest === "download") {
+        if (error instanceof Error && error.name === "AbortError") {
+          this.#setStatus("Test cancelled", "--");
+        } else {
+          this.#setStatus("Error: " + (error as Error).message, "--");
+        }
       }
     } finally {
       this.#currentTest = null;
@@ -323,11 +336,9 @@ class MainWindow {
     this.#abortController = new AbortController();
 
     try {
-      this.#setStatus("Testing upload speed...", "0.00 MB/s");
+      this.#setStatus("Preparing upload test...", "--");
 
-      const overallStartTime = Date.now();
       let totalBytesUploaded = 0;
-      let lastUpdate = overallStartTime;
 
       // Loop uploads continuously
       while (true) {
@@ -340,48 +351,31 @@ class MainWindow {
         const smallChunkSize = 65536; // 64KB per chunk for smooth updates
         let bytesGenerated = 0;
 
-        // Create a ReadableStream that generates random data
-        const stream = new ReadableStream({
-          pull: (controller) => {
-            if (this.#abortController?.signal.aborted) {
-              controller.close();
-              return;
-            }
+        // Generate data into array
+        this.#setStatus("Generating data...", this.#lastUploadSpeed);
+        const dataChunks: Uint8Array[] = [];
 
-            if (bytesGenerated >= uploadSize) {
-              controller.close();
-              return;
-            }
+        while (bytesGenerated < uploadSize) {
+          if (this.#abortController?.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
 
-            const remainingBytes = uploadSize - bytesGenerated;
-            const chunkSize = Math.min(smallChunkSize, remainingBytes);
-            const chunk = new Uint8Array(chunkSize);
-            crypto.getRandomValues(chunk);
+          const remainingBytes = uploadSize - bytesGenerated;
+          const chunkSize = Math.min(smallChunkSize, remainingBytes);
+          const chunk = new Uint8Array(chunkSize);
+          crypto.getRandomValues(chunk);
+          dataChunks.push(chunk);
+          bytesGenerated += chunkSize;
+        }
 
-            controller.enqueue(chunk);
-            bytesGenerated += chunkSize;
-            totalBytesUploaded += chunkSize;
-
-            // Update UI every 50ms during generation
-            const now = Date.now();
-            if (now - lastUpdate > 50) {
-              const elapsed = (now - overallStartTime) / 1000;
-              const speedMBps = totalBytesUploaded / (elapsed * 1024 * 1024);
-
-              this.#setStatus(
-                "Testing upload speed...",
-                `${speedMBps.toFixed(2)} MB/s`,
-              );
-
-              lastUpdate = now;
-            }
-          },
-        });
+        // Now upload the data
+        const uploadStartTime = Date.now();
+        this.#setStatus("Uploading...", this.#lastUploadSpeed);
 
         // Use httpbin.org for testing (it accepts POST)
         const response = await fetch("https://httpbin.org/post", {
           method: "POST",
-          body: stream,
+          body: dataChunks,
           signal: this.#abortController.signal,
           headers: {
             "Content-Type": "application/octet-stream",
@@ -395,14 +389,33 @@ class MainWindow {
         // Consume the response
         await response.text();
 
-        // Short pause before next upload
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        const uploadEndTime = Date.now();
+        const uploadDuration = (uploadEndTime - uploadStartTime) / 1000;
+        totalBytesUploaded += uploadSize;
+
+        // Calculate and display speed based on upload time
+        const speedMBps = uploadSize / (uploadDuration * 1024 * 1024);
+        this.#lastUploadSpeed = `${speedMBps.toFixed(2)} MB/s`;
+
+        // Only update UI if upload test is still active
+        if (this.#currentTest === "upload") {
+          this.#setStatus(
+            "Upload complete, starting next...",
+            this.#lastUploadSpeed,
+          );
+        }
+
+        // Pause before next upload so user can see the result
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        this.#setStatus("Test cancelled", "--");
-      } else {
-        this.#setStatus("Error: " + (error as Error).message, "--");
+      // Only update UI if upload test is still active
+      if (this.#currentTest === "upload") {
+        if (error instanceof Error && error.name === "AbortError") {
+          this.#setStatus("Test cancelled", "--");
+        } else {
+          this.#setStatus("Error: " + (error as Error).message, "--");
+        }
       }
     } finally {
       this.#currentTest = null;
@@ -460,16 +473,21 @@ class MainWindow {
               pings.shift();
             }
 
-            this.#setStatus(
-              "Pinging 8.8.8.8...",
-              `${pingTime.toFixed(1)} ms`,
-            );
+            // Only update UI if ping test is still active
+            if (this.#currentTest === "ping") {
+              this.#setStatus(
+                "Pinging 8.8.8.8...",
+                `${pingTime.toFixed(1)} ms`,
+              );
+            }
           }
         }
       }
 
       // If we get here, the process ended
-      if (pings.length > 0 && this.#pingProcess) {
+      if (
+        pings.length > 0 && this.#pingProcess && this.#currentTest === "ping"
+      ) {
         const avg = pings.reduce((a, b) => a + b, 0) / pings.length;
         this.#setStatus(
           "Ping test complete!",
