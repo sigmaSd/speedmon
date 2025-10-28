@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-ffi --allow-env=DENO_PYTHON_PATH --allow-net --allow-run --unstable-ffi
+#!/usr/bin/env -S deno run -A
 
 import {
   type Adw1_ as Adw_,
