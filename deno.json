@@ -1,8 +1,4 @@
 {
-  "tasks": {
-    "dev": "deno run --allow-read --allow-ffi --allow-env=DENO_PYTHON_PATH --allow-net --allow-run --unstable-ffi src/main.ts",
-    "start": "deno run --allow-read --allow-ffi --allow-env=DENO_PYTHON_PATH --allow-net --allow-run --unstable-ffi src/main.ts"
-  },
   "imports": {
     "gtk-py": "jsr:@sigma/gtk-py@^0.7.2"
   },
