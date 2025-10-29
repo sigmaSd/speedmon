@@ -2,10 +2,10 @@
 
 import {
   type Adw1_ as Adw_,
-  DenoGLibEventLoop,
   type Gio2_ as Gio_,
   type GLib2_ as GLib_,
   type Gtk4_ as Gtk_,
+  JSGLibEventLoop,
   kw,
   NamedArgument,
   python,
@@ -22,7 +22,7 @@ export const Gtk: Gtk_.Gtk = python.import("gi.repository.Gtk");
 export const Adw: Adw_.Adw = python.import("gi.repository.Adw");
 export const Gio: Gio_.Gio = python.import("gi.repository.Gio");
 export const GLib: GLib_.GLib = python.import("gi.repository.GLib");
-const el = new DenoGLibEventLoop(GLib);
+const el = new JSGLibEventLoop(GLib);
 
 type TestType = "download" | "upload" | "ping" | null;
 

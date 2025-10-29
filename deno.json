@@ -1,6 +1,6 @@
 {
   "imports": {
-    "gtk-py": "jsr:@sigma/gtk-py@^0.7.2"
+    "gtk-py": "jsr:@sigma/gtk-py@^0.9.0"
   },
   "links": [
     "../others/deno_python"
